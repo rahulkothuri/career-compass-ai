@@ -39,8 +39,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (username: string, password: string) => {
-    return new Promise((resolve, reject) => {
+  const login = async (username: string, password: string): Promise<void> => {
+    return new Promise<void>((resolve, reject) => {
       const authenticationDetails = new AuthenticationDetails({
         Username: username,
         Password: password,

@@ -45,36 +45,27 @@ const HowItWorks = () => {
             Get your resume analyzed in minutes with our simple 4-step process.
           </p>
         </div>
-        <div className="mt-16 max-w-4xl mx-auto">
-          <div className="relative">
-            {/* Connecting line */}
-            <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-0.5 bg-brand-blue/20" />
-            
-            {/* Steps */}
-            <div className="relative space-y-16">
-              {steps.map((step) => (
-                <div key={step.id} className="relative">
-                  <div className="flex items-center">
-                    {/* Step circle */}
-                    <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center justify-center w-12 h-12 rounded-full bg-brand-blue text-white font-bold z-10">
-                      {step.id}
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="ml-14 sm:ml-16 sm:pl-16 sm:pr-2 w-full sm:w-1/2">
-                      <h3 className="text-lg font-semibold text-gray-900">{step.name}</h3>
-                      <p className="mt-2 text-gray-600">{step.description}</p>
-                    </div>
-                    
-                    {/* Icon (hidden on mobile) */}
-                    <div className="hidden sm:flex items-center justify-center w-12 h-12 ml-auto rounded-md bg-brand-blue/10 text-brand-blue">
-                      <step.icon className="w-6 h-6" />
-                    </div>
-                  </div>
-                </div>
-              ))}
+        
+        <div className="grid grid-cols-1 gap-8 mt-16 md:grid-cols-2 lg:grid-cols-4">
+          {steps.map((step) => (
+            <div 
+              key={step.id}
+              className="relative p-6 bg-white rounded-lg shadow-sm transition-transform hover:scale-105"
+            >
+              <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 rounded-full bg-brand-blue text-white">
+                <step.icon className="w-6 h-6" />
+              </div>
+              <div className="absolute -top-3 -left-3 flex items-center justify-center w-8 h-8 rounded-full bg-brand-blue text-white text-sm font-bold">
+                {step.id}
+              </div>
+              <h3 className="mb-3 text-lg font-semibold text-center text-gray-900">
+                {step.name}
+              </h3>
+              <p className="text-sm text-center text-gray-600">
+                {step.description}
+              </p>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>

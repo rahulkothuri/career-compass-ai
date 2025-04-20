@@ -10,16 +10,13 @@ const Navbar = () => {
         <div className="flex items-center">
           <Link to="/" className="flex items-center space-x-2">
             <span className="text-xl font-bold text-brand-blue">
-              CareerCompass AI<span className="text-brand-teal">+</span>
+              CareerCompass AI
             </span>
           </Link>
         </div>
         <div className="hidden space-x-4 md:flex">
           <Link to="/how-it-works" className="text-gray-600 hover:text-brand-blue transition-colors">
             How it Works
-          </Link>
-          <Link to="/pricing" className="text-gray-600 hover:text-brand-blue transition-colors">
-            Pricing
           </Link>
           <Link to="/about" className="text-gray-600 hover:text-brand-blue transition-colors">
             About

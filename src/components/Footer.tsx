@@ -9,7 +9,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
           <div>
             <h3 className="text-lg font-semibold text-brand-blue">
-              CareerCompass AI<span className="text-brand-teal">+</span>
+              CareerCompass AI
             </h3>
             <p className="mt-2 text-sm text-gray-600">
               AI-powered career guidance to help you land your dream job.
@@ -26,11 +26,6 @@ const Footer = () => {
               <li>
                 <Link to="/how-it-works" className="text-sm text-gray-600 hover:text-brand-blue">
                   How it Works
-                </Link>
-              </li>
-              <li>
-                <Link to="/pricing" className="text-sm text-gray-600 hover:text-brand-blue">
-                  Pricing
                 </Link>
               </li>
             </ul>
@@ -78,7 +73,7 @@ const Footer = () => {
         </div>
         <div className="mt-8 pt-4 border-t border-gray-200">
           <p className="text-sm text-gray-500">
-            &copy; {new Date().getFullYear()} CareerCompass AI+. All rights reserved.
+            &copy; {new Date().getFullYear()} CareerCompass AI. All rights reserved.
           </p>
         </div>
       </div>

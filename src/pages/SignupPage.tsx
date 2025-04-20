@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { CognitoUserPool } from 'amazon-cognito-identity-js';
+import { CognitoUserPool, CryptoJS } from 'amazon-cognito-identity-js';
 import { cognitoConfig } from '@/config/cognitoConfig';
 
 const SignupPage = () => {
@@ -14,6 +14,12 @@ const SignupPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const generateSecretHash = (username: string) => {
+    const message = username + cognitoConfig.APP_CLIENT_ID;
+    const hmac = CryptoJS.HmacSHA256(message, cognitoConfig.CLIENT_SECRET);
+    return CryptoJS.enc.Base64.stringify(hmac);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,13 +30,23 @@ const SignupPage = () => {
       });
 
       await new Promise((resolve, reject) => {
-        userPool.signUp(username, password, [], [], (err, result) => {
-          if (err) {
-            reject(err);
-            return;
+        const secretHash = generateSecretHash(username);
+        userPool.signUp(
+          username, 
+          password, 
+          [], // No additional attributes
+          [], // No validation data
+          (err, result) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            resolve(result);
+          },
+          {
+            SecretHash: secretHash,
           }
-          resolve(result);
-        });
+        );
       });
 
       toast({

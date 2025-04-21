@@ -164,9 +164,12 @@ export const analyzeWithBedrock = async (
       accept: 'application/json',
     }).promise();
     
-    // Parse the response
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    const analysisText = responseBody.completion || responseBody.generations[0].text;
+    // Parse the response - Fix the type issue here
+    const responseBuffer = Buffer.from(response.body as unknown as ArrayBuffer);
+    const responseBodyText = responseBuffer.toString('utf-8');
+    const responseBody = JSON.parse(responseBodyText);
+    
+    const analysisText = responseBody.completion || responseBody.generations?.[0]?.text || '';
     
     // Extract the JSON part from the text response
     const jsonMatch = analysisText.match(/\{[\s\S]*\}/);

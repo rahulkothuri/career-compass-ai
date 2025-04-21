@@ -13,7 +13,7 @@ AWS.config.update({
 
 // Initialize AWS services
 const s3 = new AWS.S3();
-const textract = new AWS.Textract();
+const textract = new AWS.Textract({ apiVersion: '2018-06-27' });
 const bedrockRuntime = new AWS.BedrockRuntime();
 
 // Upload resume to S3

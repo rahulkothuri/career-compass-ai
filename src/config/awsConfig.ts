@@ -1,6 +1,10 @@
 
 export const awsConfig = {
   REGION: 'us-east-1',
-  S3_BUCKET_NAME: 'your-resume-bucket', // Replace with your actual S3 bucket name
-  BEDROCK_MODEL_ID: 'anthropic.claude-v2', // Choose the appropriate model ID
+  S3_BUCKET_NAME: 'careercompassai',
+  BEDROCK_MODEL_ID: 'anthropic.claude-v2',
+  CREDENTIALS: {
+    accessKeyId: 'AKIAVA33BQQSMZ5ROCB2',
+    secretAccessKey: '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'
+  }
 };

@@ -36,9 +36,21 @@ const AnalyzePage = () => {
     setResumeS3Key(s3Key);
     
     try {
+      // Show a toast notification that text extraction is in progress
+      toast({
+        title: "Processing Resume",
+        description: "Extracting text from your resume. This may take a minute...",
+      });
+      
       // Extract text from the uploaded PDF via AWS Textract
       const extractedText = await extractTextFromResume(s3Key);
       setResumeText(extractedText);
+      
+      // Show success toast
+      toast({
+        title: "Resume Processed",
+        description: "Your resume has been successfully processed.",
+      });
       
       // After successful text extraction, proceed to the next step
       setTimeout(() => {
@@ -46,6 +58,7 @@ const AnalyzePage = () => {
       }, 1000);
       
     } catch (error) {
+      console.error("Text extraction error:", error);
       toast({
         variant: 'destructive',
         title: 'Text Extraction Failed',
@@ -60,15 +73,28 @@ const AnalyzePage = () => {
     setIsAnalyzing(true);
     
     try {
+      // Show a toast notification that analysis is in progress
+      toast({
+        title: "Analyzing Resume",
+        description: "Comparing your resume with the job description. This may take a minute...",
+      });
+      
       // Analyze the resume and job description using AWS Bedrock
       if (resumeText) {
         const results = await analyzeWithBedrock(resumeText, description);
         setAnalysisResults(results);
         setAnalysisComplete(true);
+        
+        // Show success toast
+        toast({
+          title: "Analysis Complete",
+          description: "Your resume has been analyzed against the job description.",
+        });
       } else {
         throw new Error("Resume text not available");
       }
     } catch (error) {
+      console.error("Analysis error:", error);
       toast({
         variant: 'destructive',
         title: 'Analysis Failed',

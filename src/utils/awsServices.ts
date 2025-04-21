@@ -1,22 +1,41 @@
 
-// This is a frontend utility that will call our API endpoints
-// In a production environment, these operations should be done on the backend
+import { awsConfig } from "@/config/awsConfig";
+import AWS from "aws-sdk";
 
-// Upload resume to S3 via API endpoint
+// Configure AWS SDK with credentials
+AWS.config.update({
+  region: awsConfig.REGION,
+  credentials: new AWS.Credentials(
+    awsConfig.CREDENTIALS.accessKeyId,
+    awsConfig.CREDENTIALS.secretAccessKey
+  )
+});
+
+// Initialize AWS services
+const s3 = new AWS.S3();
+const textract = new AWS.Textract();
+const bedrockRuntime = new AWS.BedrockRuntime();
+
+// Upload resume to S3
 export const uploadResumeToS3 = async (file: File): Promise<string> => {
   try {
-    // Here we would call an API endpoint that handles S3 upload
-    // For now, we'll simulate the response
     console.log(`Uploading file: ${file.name} to S3...`);
     
-    // In an actual implementation, we would:
-    // 1. Create a pre-signed URL from our backend
-    // 2. Upload directly to S3 or through our API
+    // Convert file to buffer
+    const fileBuffer = await file.arrayBuffer();
     
-    // Simulate API response with the S3 object key
+    // Generate a unique object key
     const objectKey = `resumes/${Date.now()}-${file.name}`;
     
-    // Return the object key (path in S3)
+    // Upload to S3
+    await s3.putObject({
+      Bucket: awsConfig.S3_BUCKET_NAME,
+      Key: objectKey,
+      Body: Buffer.from(fileBuffer),
+      ContentType: file.type
+    }).promise();
+    
+    console.log(`Successfully uploaded to S3: ${objectKey}`);
     return objectKey;
   } catch (error) {
     console.error("Error uploading to S3:", error);
@@ -24,22 +43,78 @@ export const uploadResumeToS3 = async (file: File): Promise<string> => {
   }
 };
 
-// Extract text from the PDF resume via API endpoint
+// Extract text from the PDF resume using AWS Textract
 export const extractTextFromResume = async (objectKey: string): Promise<string> => {
   try {
-    // Here we would call an API endpoint that uses Textract or similar
     console.log(`Extracting text from document at ${objectKey}...`);
     
-    // Simulate API response with extracted text
-    // In a real scenario, this would come from an AWS Textract operation
-    return "Simulated extracted text from resume. This would contain the actual text from the PDF in a real implementation.";
+    // Start document text detection job
+    const startResponse = await textract.startDocumentTextDetection({
+      DocumentLocation: {
+        S3Object: {
+          Bucket: awsConfig.S3_BUCKET_NAME,
+          Name: objectKey
+        }
+      }
+    }).promise();
+    
+    const jobId = startResponse.JobId;
+    if (!jobId) {
+      throw new Error("Failed to start text extraction job");
+    }
+    
+    // Poll for job completion
+    let jobComplete = false;
+    let extractedText = "";
+    
+    while (!jobComplete) {
+      const getResultsResponse = await textract.getDocumentTextDetection({
+        JobId: jobId
+      }).promise();
+      
+      jobComplete = getResultsResponse.JobStatus === 'SUCCEEDED';
+      
+      if (jobComplete && getResultsResponse.Blocks) {
+        // Combine all text blocks
+        extractedText = getResultsResponse.Blocks
+          .filter(block => block.BlockType === 'LINE')
+          .map(block => block.Text)
+          .join(' ');
+        
+        // Get remaining pages if any
+        let nextToken = getResultsResponse.NextToken;
+        while (nextToken) {
+          const additionalResults = await textract.getDocumentTextDetection({
+            JobId: jobId,
+            NextToken: nextToken
+          }).promise();
+          
+          if (additionalResults.Blocks) {
+            const additionalText = additionalResults.Blocks
+              .filter(block => block.BlockType === 'LINE')
+              .map(block => block.Text)
+              .join(' ');
+            
+            extractedText += ' ' + additionalText;
+          }
+          
+          nextToken = additionalResults.NextToken;
+        }
+      } else if (!jobComplete) {
+        // Wait before polling again
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    console.log("Text extraction complete");
+    return extractedText;
   } catch (error) {
     console.error("Error extracting text:", error);
     throw new Error("Failed to extract text from resume");
   }
 };
 
-// Analyze resume and job description using Bedrock LLM via API endpoint
+// Analyze resume and job description using Bedrock LLM
 export const analyzeWithBedrock = async (
   resumeText: string, 
   jobDescription: string
@@ -47,43 +122,60 @@ export const analyzeWithBedrock = async (
   try {
     console.log("Sending to Bedrock for analysis...");
     
-    // Here we would call an API endpoint that interacts with Bedrock
-    // The API would format the prompt and call Bedrock with appropriate parameters
+    // Format the prompt for Claude model
+    const prompt = `
+    Human: I want you to analyze a resume against a job description and provide structured feedback.
+
+    Resume Text:
+    ${resumeText}
+
+    Job Description:
+    ${jobDescription}
+
+    Please analyze how well the resume matches the job description and provide the following information in JSON format:
+    1. An overall match score (0-100)
+    2. Category scores for: Skills Match, Experience Match, and Technical Match
+    3. Suggestions for improvement, categorized as "critical" or "improvement"
+    4. Keyword analysis showing matching and missing keywords
+    5. Skills evaluation with required level (1-5) and found level (1-5)
+
+    Format your response as valid JSON with the following structure:
+    {
+      "overallScore": number,
+      "scores": [{"category": string, "score": number}],
+      "suggestions": [{"type": string, "title": string, "description": string}],
+      "keywordAnalysis": {"matching": string[], "missing": string[]},
+      "skillsEvaluation": [{"skill": string, "requiredLevel": number, "foundLevel": number}]
+    }
+
+    Assistant: 
+    `;
     
-    // Simulate API response with analysis results
-    // In a real scenario, this would be the structured response from Bedrock
-    const mockResults = {
-      overallScore: 76,
-      scores: [
-        { category: "Skills Match", score: 82 },
-        { category: "Experience Match", score: 68 },
-        { category: "Technical Match", score: 79 },
-      ],
-      suggestions: [
-        {
-          type: "critical",
-          title: "Missing Key Technical Skill",
-          description: "The job requires proficiency in AWS services, which is not mentioned in your resume."
-        },
-        {
-          type: "improvement",
-          title: "Enhance Experience Section",
-          description: "Quantify your achievements with metrics to demonstrate impact, especially in your most recent role."
-        },
-        // Additional suggestions would be included here
-      ],
-      keywordAnalysis: {
-        matching: ["JavaScript", "React", "Python"],
-        missing: ["AWS", "Docker", "Kubernetes"]
-      },
-      skillsEvaluation: [
-        { skill: "JavaScript", requiredLevel: 4, foundLevel: 4 },
-        { skill: "AWS", requiredLevel: 4, foundLevel: 1 },
-        // Additional skills would be evaluated here
-      ]
-    };
+    // Bedrock API call
+    const response = await bedrockRuntime.invokeModel({
+      body: JSON.stringify({
+        prompt: prompt,
+        max_tokens_to_sample: 4096,
+        temperature: 0.7,
+        top_p: 0.9,
+      }),
+      modelId: awsConfig.BEDROCK_MODEL_ID,
+      contentType: 'application/json',
+      accept: 'application/json',
+    }).promise();
     
-    return mockResults;
+    // Parse the response
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+    const analysisText = responseBody.completion || responseBody.generations[0].text;
+    
+    // Extract the JSON part from the text response
+    const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("Could not parse JSON response from Bedrock");
+    }
+    
+    const analysisResults = JSON.parse(jsonMatch[0]);
+    return analysisResults;
   } catch (error) {
     console.error("Error analyzing with Bedrock:", error);
     throw new Error("Failed to analyze resume with job description");

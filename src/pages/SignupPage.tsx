@@ -5,8 +5,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { CognitoUserPool, CryptoJS } from 'amazon-cognito-identity-js';
-import { cognitoConfig } from '@/config/cognitoConfig';
 
 const SignupPage = () => {
   const [username, setUsername] = useState('');
@@ -15,43 +13,15 @@ const SignupPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const generateSecretHash = (username: string) => {
-    const message = username + cognitoConfig.APP_CLIENT_ID;
-    const hmac = CryptoJS.HmacSHA256(message, cognitoConfig.CLIENT_SECRET);
-    return CryptoJS.enc.Base64.stringify(hmac);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const userPool = new CognitoUserPool({
-        UserPoolId: cognitoConfig.USER_POOL_ID,
-        ClientId: cognitoConfig.APP_CLIENT_ID,
-      });
-
-      await new Promise((resolve, reject) => {
-        const secretHash = generateSecretHash(username);
-        userPool.signUp(
-          username, 
-          password, 
-          [], // No additional attributes
-          [], // No validation data
-          (err, result) => {
-            if (err) {
-              reject(err);
-              return;
-            }
-            resolve(result);
-          },
-          {
-            SecretHash: secretHash,
-          }
-        );
-      });
-
+      // This is now just a placeholder for signup - no actual signup happens
+      console.log("User signup attempt:", username);
+      
       toast({
         title: 'Successfully signed up',
-        description: 'Please check your email for verification code',
+        description: 'Welcome to CareerCompass AI',
       });
       
       await login(username, password);

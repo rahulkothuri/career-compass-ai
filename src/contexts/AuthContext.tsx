@@ -1,91 +1,42 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { CognitoUser, AuthenticationDetails, CognitoUserPool } from 'amazon-cognito-identity-js';
-import { cognitoConfig } from '@/config/cognitoConfig';
+import { createContext, useContext, useState } from 'react';
 
+// Define the AuthContext types
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: any | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const userPool = new CognitoUserPool({
-  UserPoolId: cognitoConfig.USER_POOL_ID,
-  ClientId: cognitoConfig.APP_CLIENT_ID,
+// Create the context with a default value
+const AuthContext = createContext<AuthContextType>({
+  isAuthenticated: false,
+  login: async () => {},
+  logout: () => {},
 });
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+// AuthProvider component that will wrap the app
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<any | null>(null);
 
-  useEffect(() => {
-    checkAuthState();
-  }, []);
-
-  const checkAuthState = () => {
-    const currentUser = userPool.getCurrentUser();
-    if (currentUser) {
-      currentUser.getSession((err: any, session: any) => {
-        if (err) {
-          setIsAuthenticated(false);
-        } else {
-          setIsAuthenticated(true);
-          setUser(currentUser);
-        }
-      });
-    }
-  };
-
-  const login = async (username: string, password: string): Promise<void> => {
-    return new Promise<void>((resolve, reject) => {
-      const authenticationDetails = new AuthenticationDetails({
-        Username: username,
-        Password: password,
-      });
-
-      const userData = {
-        Username: username,
-        Pool: userPool,
-      };
-
-      const cognitoUser = new CognitoUser(userData);
-
-      cognitoUser.authenticateUser(authenticationDetails, {
-        onSuccess: (result) => {
-          setIsAuthenticated(true);
-          setUser(cognitoUser);
-          resolve();
-        },
-        onFailure: (err) => {
-          reject(err);
-        },
-      });
-    });
+  // Simplified login function without Cognito
+  const login = async (username: string, password: string) => {
+    // This is a placeholder - no actual authentication happens
+    setIsAuthenticated(true);
+    console.log(`User logged in: ${username}`);
   };
 
   const logout = () => {
-    const currentUser = userPool.getCurrentUser();
-    if (currentUser) {
-      currentUser.signOut();
-      setIsAuthenticated(false);
-      setUser(null);
-    }
+    setIsAuthenticated(false);
+    console.log('User logged out');
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
-}
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 };
+
+// Custom hook to use the auth context
+export const useAuth = () => useContext(AuthContext);

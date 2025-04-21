@@ -11,6 +11,8 @@ import KeywordComparison from "@/components/AnalyzerComponents/AnalysisResults/K
 import SkillsRadarChart from "@/components/AnalyzerComponents/AnalysisResults/SkillsRadarChart";
 import { Button } from "@/components/ui/button";
 import { FileText, Code, BookOpenCheck, Download } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { extractTextFromResume, analyzeWithBedrock } from "@/utils/awsServices";
 
 const steps = [
   { id: 1, name: "Upload Resume" },
@@ -21,121 +23,133 @@ const steps = [
 const AnalyzePage = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumeS3Key, setResumeS3Key] = useState<string | null>(null);
+  const [resumeText, setResumeText] = useState<string | null>(null);
   const [jobDescription, setJobDescription] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisComplete, setAnalysisComplete] = useState(false);
+  const [analysisResults, setAnalysisResults] = useState<any>(null);
+  const { toast } = useToast();
 
-  // This would come from the backend in a real implementation
-  const mockAnalysisResults = {
-    overallScore: 76,
-    scores: [
-      { 
-        category: "Skills Match", 
-        score: 82,
-        icon: <BookOpenCheck className="h-4 w-4" />
-      },
-      { 
-        category: "Experience Match", 
-        score: 68, 
-        icon: <FileText className="h-4 w-4" />
-      },
-      { 
-        category: "Technical Match", 
-        score: 79, 
-        icon: <Code className="h-4 w-4" />
-      },
-    ],
-    suggestions: [
-      {
-        id: "s1",
-        type: "critical" as const,
-        title: "Missing Key Technical Skill",
-        description: "The job requires proficiency in AWS services, which is not mentioned in your resume."
-      },
-      {
-        id: "s2",
-        type: "improvement" as const,
-        title: "Enhance Experience Section",
-        description: "Quantify your achievements with metrics to demonstrate impact, especially in your most recent role."
-      },
-      {
-        id: "s3",
-        type: "improvement" as const,
-        title: "Add Project Examples",
-        description: "Include specific examples of projects where you've used relevant technologies mentioned in the job description."
-      },
-      {
-        id: "s4",
-        type: "strength" as const,
-        title: "Strong Educational Background",
-        description: "Your educational qualifications align perfectly with what the employer is seeking."
-      },
-      {
-        id: "s5",
-        type: "strength" as const,
-        title: "Relevant Industry Experience",
-        description: "Your experience in the same industry is a significant advantage for this position."
-      }
-    ],
-    keywordAnalysis: [
-      {
-        category: "Skills",
-        matching: ["JavaScript", "React", "Python", "SQL", "HTML/CSS"],
-        missing: ["AWS", "Docker", "Kubernetes", "GraphQL"]
-      },
-      {
-        category: "Experience",
-        matching: ["Frontend Development", "API Integration", "Team Management"],
-        missing: ["Cloud Infrastructure", "CI/CD Pipelines"]
-      },
-      {
-        category: "Education",
-        matching: ["Bachelor's Degree", "Computer Science"],
-        missing: []
-      }
-    ],
-    skillsData: [
-      { skill: "JavaScript", requiredLevel: 4, yourLevel: 4.5 },
-      { skill: "React", requiredLevel: 4, yourLevel: 3.5 },
-      { skill: "Python", requiredLevel: 3, yourLevel: 3 },
-      { skill: "AWS", requiredLevel: 4, yourLevel: 1 },
-      { skill: "SQL", requiredLevel: 3, yourLevel: 4 },
-      { skill: "Docker", requiredLevel: 3.5, yourLevel: 1.5 },
-    ]
-  };
-
-  const handleResumeUpload = (file: File) => {
+  const handleResumeUpload = async (file: File, s3Key: string) => {
     setResumeFile(file);
-    // After a short delay, proceed to the next step
-    setTimeout(() => {
-      setCurrentStep(2);
-    }, 1000);
+    setResumeS3Key(s3Key);
+    
+    try {
+      // Extract text from the uploaded PDF via AWS Textract
+      const extractedText = await extractTextFromResume(s3Key);
+      setResumeText(extractedText);
+      
+      // After successful text extraction, proceed to the next step
+      setTimeout(() => {
+        setCurrentStep(2);
+      }, 1000);
+      
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Text Extraction Failed',
+        description: 'We couldn\'t extract text from your resume. Please try again with a different file.',
+      });
+    }
   };
 
-  const handleJobDescriptionSubmit = (description: string) => {
+  const handleJobDescriptionSubmit = async (description: string) => {
     setJobDescription(description);
     setCurrentStep(3);
     setIsAnalyzing(true);
     
-    // Simulate analysis process
-    setTimeout(() => {
+    try {
+      // Analyze the resume and job description using AWS Bedrock
+      if (resumeText) {
+        const results = await analyzeWithBedrock(resumeText, description);
+        setAnalysisResults(results);
+        setAnalysisComplete(true);
+      } else {
+        throw new Error("Resume text not available");
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Analysis Failed',
+        description: 'We encountered an error analyzing your resume. Please try again.',
+      });
+    } finally {
       setIsAnalyzing(false);
-      setAnalysisComplete(true);
-    }, 3500);
+    }
   };
 
   const handleStartOver = () => {
     setCurrentStep(1);
     setResumeFile(null);
+    setResumeS3Key(null);
+    setResumeText(null);
     setJobDescription("");
     setIsAnalyzing(false);
     setAnalysisComplete(false);
+    setAnalysisResults(null);
   };
 
   const handleDownloadReport = () => {
     // In a real implementation, this would generate and download a PDF report
-    alert("In a real implementation, this would generate and download a PDF report with the analysis results.");
+    toast({
+      title: 'Report Download',
+      description: 'Report download functionality will be implemented in the future.',
+    });
   };
+
+  // Format the analysis results for the UI components
+  const formatResultsForUI = () => {
+    if (!analysisResults) return null;
+    
+    // Format scores for MatchScores component
+    const formattedScores = analysisResults.scores.map((score: any) => ({
+      category: score.category,
+      score: score.score,
+      icon: getIconForCategory(score.category)
+    }));
+    
+    // Format keywords for KeywordComparison component
+    const formattedKeywords = [
+      {
+        category: "Keywords",
+        matching: analysisResults.keywordAnalysis.matching,
+        missing: analysisResults.keywordAnalysis.missing
+      }
+    ];
+    
+    // Format skills for SkillsRadarChart component
+    const formattedSkills = analysisResults.skillsEvaluation.map((skill: any) => ({
+      skill: skill.skill,
+      requiredLevel: skill.requiredLevel,
+      yourLevel: skill.foundLevel
+    }));
+    
+    return {
+      scores: formattedScores,
+      overallScore: analysisResults.overallScore,
+      suggestions: analysisResults.suggestions,
+      keywords: formattedKeywords,
+      skills: formattedSkills
+    };
+  };
+  
+  // Helper function to get icons for score categories
+  const getIconForCategory = (category: string) => {
+    switch (category) {
+      case "Skills Match":
+        return <BookOpenCheck className="h-4 w-4" />;
+      case "Experience Match":
+        return <FileText className="h-4 w-4" />;
+      case "Technical Match":
+        return <Code className="h-4 w-4" />;
+      default:
+        return <BookOpenCheck className="h-4 w-4" />;
+    }
+  };
+  
+  // Get formatted results
+  const formattedResults = formatResultsForUI();
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -170,7 +184,7 @@ const AnalyzePage = () => {
                     This will take just a moment.
                   </p>
                 </div>
-              ) : analysisComplete && (
+              ) : analysisComplete && formattedResults && (
                 <div>
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold">Analysis Results</h2>
@@ -186,15 +200,15 @@ const AnalyzePage = () => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <MatchScores 
-                      scores={mockAnalysisResults.scores} 
-                      overallScore={mockAnalysisResults.overallScore} 
+                      scores={formattedResults.scores} 
+                      overallScore={formattedResults.overallScore} 
                     />
-                    <SkillsRadarChart skills={mockAnalysisResults.skillsData} />
+                    <SkillsRadarChart skills={formattedResults.skills} />
                   </div>
                   
                   <div className="space-y-6">
-                    <FeedbackSuggestions suggestions={mockAnalysisResults.suggestions} />
-                    <KeywordComparison keywords={mockAnalysisResults.keywordAnalysis} />
+                    <FeedbackSuggestions suggestions={formattedResults.suggestions} />
+                    <KeywordComparison keywords={formattedResults.keywords} />
                   </div>
                 </div>
               )}

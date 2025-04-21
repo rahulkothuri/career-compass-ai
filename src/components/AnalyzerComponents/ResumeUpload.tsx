@@ -4,9 +4,10 @@ import { Upload, FileText, Check, AlertCircle } from "lucide-react";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
 import { Card, CardContent } from "../ui/card";
+import { uploadResumeToS3 } from "@/utils/awsServices";
 
 interface ResumeUploadProps {
-  onResumeUploaded: (file: File) => void;
+  onResumeUploaded: (file: File, s3Key: string) => void;
 }
 
 const ResumeUpload: React.FC<ResumeUploadProps> = ({ onResumeUploaded }) => {
@@ -42,33 +43,47 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onResumeUploaded }) => {
   };
 
   const processFile = (selectedFile: File) => {
-    // Check if file is PDF (for now)
+    // Check if file is PDF
     if (selectedFile.type === "application/pdf" || selectedFile.name.endsWith(".pdf")) {
       setFile(selectedFile);
-      simulateUpload(selectedFile);
+      handleUpload(selectedFile);
     } else {
       setUploadStatus("error");
       setTimeout(() => setUploadStatus("idle"), 3000);
     }
   };
 
-  // Simulated upload process
-  const simulateUpload = (selectedFile: File) => {
+  const handleUpload = async (selectedFile: File) => {
     setUploadStatus("uploading");
     setUploadProgress(0);
     
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        const newProgress = prev + 10;
-        if (newProgress >= 100) {
-          clearInterval(interval);
-          setUploadStatus("success");
-          onResumeUploaded(selectedFile);
-          return 100;
-        }
-        return newProgress;
-      });
-    }, 200);
+    try {
+      // Start upload progress simulation
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          const newProgress = prev + 10;
+          if (newProgress >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return newProgress;
+        });
+      }, 200);
+      
+      // Upload to S3
+      const s3Key = await uploadResumeToS3(selectedFile);
+      
+      // Complete the progress
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      setUploadStatus("success");
+      
+      // Notify parent component
+      onResumeUploaded(selectedFile, s3Key);
+    } catch (error) {
+      setUploadStatus("error");
+      console.error("Upload failed:", error);
+    }
   };
 
   return (
